@@ -3,10 +3,11 @@ import { ApiError } from "../utils/index.ts";
 import { StatusCodes } from "http-status-codes";
 import jwt from "jsonwebtoken";
 import { envConfig } from "../config/index.ts";
-import { TAccessTokenPayload } from "../modules/auth/index.ts";
+import type { TAccessTokenPayload } from "../modules/auth/auth.types.ts";
 import mongoose from "mongoose";
 import { logger } from "../config/index.ts";
-import { UserModel, ACCOUNT_STATUS } from "../modules/user/index.ts";
+import UserModel from "../modules/user/user.model.ts";
+import { ACCOUNT_STATUS } from "../modules/user/user.constant.ts";
 
 
 async function authenticate(req: Request, res: Response, next: NextFunction) {
@@ -45,7 +46,7 @@ async function authenticate(req: Request, res: Response, next: NextFunction) {
         req.validatedUser = user;
 
         logger.info("User authenticated successfully");
-        next();
+        return next();
     } catch (error: any) {
         if (error instanceof jwt.TokenExpiredError) {
             return next(new ApiError(StatusCodes.UNAUTHORIZED, "Access token has expired"));

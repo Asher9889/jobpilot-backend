@@ -1,8 +1,9 @@
-import { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { ApiError } from "../utils/index.ts";
+import type { TUserRole } from "../modules/user/user.types.ts";
 
-const authorize = (...roles: string[]) => (req: Request, res: Response, next: NextFunction) => {
+const authorize = (...roles: TUserRole[]) => (req: Request, _: Response, next: NextFunction) => {
     const user = req.validatedUser;
 
     if (!user) {

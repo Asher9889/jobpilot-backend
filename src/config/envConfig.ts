@@ -5,14 +5,21 @@ import { StringValue } from "ms";
 const envConfig = {
     port: Number(process.env.PORT),
 
-        // MongoDB Configuration
+    // MongoDB Configuration
 
     mongodbConnectionString: process.env.MONGODB_URL!,
+
+    // Super Admin Configuration
+    superAdmin: {
+        email: process.env.SUPER_ADMIN_EMAIL!,
+        password: process.env.SUPER_ADMIN_PASSWORD!,
+    },
 
 
     telegram: {
         apiId: Number(process.env.TELEGRAM_API_ID)!,
-        apiHash: process.env.TELEGRAM_API_HASH!
+        apiHash: process.env.TELEGRAM_API_HASH!,
+        sessionEncryptionKey: process.env.TELEGRAM_SESSION_ENCRYPTION_KEY!,
     },
 
     // JWT Configuration

@@ -1,4 +1,4 @@
-import { IUser } from "../modules/user";
+import { IUser } from "../modules/user/index.ts";
 
 
 declare global {

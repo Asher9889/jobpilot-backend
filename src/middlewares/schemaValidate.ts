@@ -19,7 +19,6 @@ const schemaValidate = (schema: ZodObject) => (req: Request, res: Response, next
     req.validatedBody = result.data;
 
     logger.info("Schema validation successful. Proceeding to next middleware.");
-    logger.info("Validated request body: " + JSON.stringify(result.data));
     next();
 };
 

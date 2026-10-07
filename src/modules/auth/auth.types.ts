@@ -1,7 +1,7 @@
 import z from "zod";
 
 import { loginSchema } from "./auth.schema.ts";
-import { TUserRole } from "../user/index.ts";
+import type { TUserRole } from "../user/user.types.ts";
 
 
 type TLoginRequestDTO = z.infer<typeof loginSchema>;

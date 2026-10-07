@@ -3,8 +3,9 @@ import { StatusCodes } from "http-status-codes";
 import { envConfig } from "../../config/index.ts";
 
 import { TLoginRequestDTO, TRefreshTokenPayload, generateJWTTokensResponse } from "./auth.types.ts";
-import { UserModel } from "../user/index.ts";
+import UserModel from "../user/user.model.ts";
 import { ApiError } from "../../utils/index.ts";
+import TelegramAccountModel, { ITelegramAccount } from "../telegram/telegram.model.ts";
 
 
 class AuthService {
@@ -66,8 +67,23 @@ class AuthService {
                 );
             }
 
-            let { _id, password, ...rest } = user;
-            return { id: _id.toString(), ...rest };
+            let telegramAccount:ITelegramAccount | null = null;
+            if(user.telegram){
+                telegramAccount = await TelegramAccountModel.findById(user.telegram).select("-userSessionString -createdAt -updatedAt").lean();
+            }
+
+            
+            let { _id, password, telegram, ...rest  } = user;
+
+            const returnedUser = { id: _id.toString(), ...rest };
+
+            if (!telegramAccount) {
+                return returnedUser;
+            }
+
+            const { _id: telegramId, userId, ...restTelegram } = telegramAccount;
+            const userWithTelegram = { ...returnedUser, telegram: { id: telegramId.toString(), ...restTelegram } };
+            return userWithTelegram;
         } catch (error) {
             throw error;
         }

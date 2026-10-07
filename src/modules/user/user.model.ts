@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 import { ACCOUNT_STATUS, USER_ROLE } from "./user.constant.ts";
 import { envConfig } from "../../config/index.ts";
-import { generateTokensPayload, TUserRole, generateJWTTokensResponse } from "../auth/index.ts";
+import type { generateTokensPayload, TUserRole, generateJWTTokensResponse } from "../auth/auth.types.ts";
 import { TAccountStatus } from "./user.types.ts";
 
 
@@ -13,6 +13,7 @@ export interface IUser extends mongoose.Document {
     password: string;
     role: TUserRole;
     accountStatus: TAccountStatus;
+    telegram: mongoose.Types.ObjectId | null;
     comparePassword(password: string): Promise<boolean>;
     generateTokens(data: generateTokensPayload): generateJWTTokensResponse;
 }
@@ -22,6 +23,7 @@ export const userSchema = new mongoose.Schema<IUser>({
     password: { type: String, required: true },
     role: { type: String, enum: Object.values(USER_ROLE), required: true },
     accountStatus: { type: String, enum: Object.values(ACCOUNT_STATUS), default: ACCOUNT_STATUS.ACTIVE, required: true },
+    telegram: { type: mongoose.Types.ObjectId, ref: "TelegramAccount", default: null }
 }, { timestamps: true, versionKey: false });
 
 userSchema.index({ email: 1 }, { unique: true });

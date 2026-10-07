@@ -2,6 +2,8 @@ import { StoreSession, StringSession } from "teleproto/sessions";
 // import { createInterface } from "node:readline/promises";
 import { Api, TelegramClient } from "teleproto";
 import "node:process";
+import TelegramAccountModel from "./telegram.model.ts";
+import { decrypt } from "../../utils/index.ts";
 
 class TelegramClientService {
     private readonly apiId: number;
@@ -15,15 +17,36 @@ class TelegramClientService {
     }
 
     private initClient = () => {
+        /**
+         * empty string means create a new sessionString.
+         * after that using it we will connect to telegram server.
+         */
         const session = new StringSession("");
-        // const rl = createInterface({ input: process.stdin, output: process.stdout });
         const client = new TelegramClient(session, this.apiId, this.apiHash, {
             connectionRetries: 5,
         });
-        
+
         return client;
     }
 
+
+    createClientUsingSessionString = (sessionString: string): TelegramClient => {
+        const session = new StringSession(sessionString);
+        const client = new TelegramClient(session, this.apiId, this.apiHash, {
+            connectionRetries: 5,
+        });
+        return client;
+    }
+
+    async getSessionString(userId: string): Promise<string> {
+        const account = await TelegramAccountModel.findOne({ userId }, { userSessionString: 1 }).lean();
+
+        if (!account) {
+            throw new Error("Telegram account not connected");
+        }
+
+        return decrypt(account.userSessionString);
+    }
 
     getClient = (): TelegramClient => {
         if (!this.client) {
@@ -31,6 +54,7 @@ class TelegramClientService {
         }
         return this.client;
     }
+
 
     connect = async (): Promise<void> => {
         await this.client.connect();

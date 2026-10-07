@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx --env-file=.env ./src/server.ts"
+    "dev": "tsx watch --env-file=.env ./src/server.ts",
+    "seed:super-admin": "tsx --env-file=.env ./src/seeders/seedSuperAdmin.ts"
   },
   "engines": {
     "node": ">=24"
@@ -15,6 +16,7 @@
   "description": "",
   "dependencies": {
     "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "http-status-codes": "^2.3.0",
@@ -26,6 +28,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",

@@ -10,6 +10,7 @@ class TelegramController {
     }
 
     startQrAuth = async (req: Request, res: Response) => {
+        const loggedInUser = req.validatedUser;
         res.set({
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache, no-transform",
@@ -31,16 +32,20 @@ class TelegramController {
         };
 
         try {
-            const user = await this.telegramService.startQrAuth(
+            const profile = await this.telegramService.startQrAuth(
                 (url, expires) => {
                     send("qr", { url, expires });
                 },
                 abort.signal,
+                loggedInUser
             );
 
-            const profile = await this.telegramService.getProfileSummary(user);
+            // if (!profile) {
+            //     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, "Failed to retrieve Telegram profile after QR authentication");
+            // }
+            // const profile = await this.telegramService.getProfileSummary(user);
 
-            send("done", { id: user.id, user: profile });
+            send("done", { id: profile!.id, user: profile });
         } catch (error) {
             send("error", {
                 message: (error as Error).message,
@@ -51,7 +56,7 @@ class TelegramController {
 
     }
 
-    
+
 
 }
 
