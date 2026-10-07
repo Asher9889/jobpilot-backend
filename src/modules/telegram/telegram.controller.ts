@@ -1,4 +1,4 @@
-import TelegramService from "./telegram.service.ts"
+import TelegramService from "./telegram.service.ts";
 import { Request, Response } from "express";
 
 
@@ -38,7 +38,9 @@ class TelegramController {
                 abort.signal,
             );
 
-            send("done", { id: user.id, user: user.className });
+            const profile = await this.telegramService.getProfileSummary(user);
+
+            send("done", { id: user.id, user: profile });
         } catch (error) {
             send("error", {
                 message: (error as Error).message,
@@ -48,6 +50,9 @@ class TelegramController {
         }
 
     }
+
+    
+
 }
 
 export default TelegramController;

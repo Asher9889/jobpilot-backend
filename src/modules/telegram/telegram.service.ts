@@ -1,5 +1,5 @@
-import { TelegramClient } from "teleproto"
-
+import { TelegramClient, Api } from "teleproto"
+import { logger } from "../../config/index.ts"
 class TelegramService {
     private readonly telegramClient: TelegramClient;
     private readonly apiId: number;
@@ -23,13 +23,13 @@ class TelegramService {
     /**
      * Start QR based user auth
      */
-    startQrAuth = async (onQrCode:(url:string, expires:number) => void, signal: AbortSignal) => {
+    startQrAuth = async (cb: (url: string, expires: number) => void, signal: AbortSignal) => {
         const user = await this.telegramClient.signInUserWithQrCode(
             { apiId: this.apiId, apiHash: this.apiHash },
             {
                 qrCode: async ({ token, expires }) => {
                     const url = `tg://login?token=${token.toString("base64url")}`;
-                    onQrCode(url, expires)
+                    cb(url, expires)
                     // qrcode.generate(url, { small: true });
                     // console.log(`QR expires in ${expires}s — scan from Telegram > Devices > Link Desktop Device`);
                 },
@@ -38,6 +38,10 @@ class TelegramService {
                 abortSignal: signal, // abort.abort() stops polling, rejects with AbortError
             },
         );
+
+        const userSessionString =  this.telegramClient.session.save();
+
+        logger.info({sessionString: userSessionString}, "User Auth Session String");
 
         return user;
     }
@@ -71,6 +75,42 @@ class TelegramService {
      * Disconnect the Telegram account.
      */
     async logout(userId: string): Promise<void> { }
+
+    getProfileSummary = async (user: Api.TypeUser) => {
+        const u = user instanceof Api.User ? user : undefined;
+
+        const avatarBuffer = u?.photo instanceof Api.UserProfilePhoto
+            ? await this.telegramClient.downloadProfilePhoto(u)   // Buffer | undefined
+            : undefined;
+
+        return {
+            id: user.id.toString(),
+            firstName: u?.firstName ?? null,
+            lastName: u?.lastName ?? null,
+            fullName: [u?.firstName, u?.lastName].filter(Boolean).join(" ") || null,
+            username: u?.username ?? null,
+            phone: u?.phone ?? null,                 // omit if frontend doesn't need it
+            photo: u?.photo instanceof Api.UserProfilePhoto
+                ? {
+                    photoId: u.photo.photoId.toString(),
+                    dcId: u.photo.dcId,
+                    hasVideo: !!u.photo.hasVideo,
+                    // tiny always-available thumb (base64 JPEG):
+                    thumbBase64: u.photo.strippedThumb
+                        ? `data:image/jpeg;base64,${Buffer.from(u.photo.strippedThumb).toString("base64")}`
+                        : null,
+                    // full-size image as base64 (extra RPC, ~50-200KB):
+                    avatarBase64: avatarBuffer?.length
+                        ? `data:image/jpeg;base64,${avatarBuffer.toString("base64")}`
+                        : null,
+                }
+                : null,
+            // status: this.serializeStatus(u?.status),
+            isPremium: !!u?.premium,
+            isVerified: !!u?.verified,
+            isSelf: !!u?.self,
+        };
+    }
 }
 
 export default TelegramService;

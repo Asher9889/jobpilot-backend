@@ -1,4 +1,4 @@
-import { StoreSession } from "teleproto/sessions";
+import { StoreSession, StringSession } from "teleproto/sessions";
 // import { createInterface } from "node:readline/promises";
 import { Api, TelegramClient } from "teleproto";
 import "node:process";
@@ -15,7 +15,7 @@ class TelegramClientService {
     }
 
     private initClient = () => {
-        const session = new StoreSession("telegram-session");
+        const session = new StringSession("");
         // const rl = createInterface({ input: process.stdin, output: process.stdout });
         const client = new TelegramClient(session, this.apiId, this.apiHash, {
             connectionRetries: 5,
