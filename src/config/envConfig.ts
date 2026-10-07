@@ -1,7 +1,14 @@
 import { parseStringDurationToMs } from "../utils/index.ts";
 import { StringValue } from "ms";
+
+
 const envConfig = {
-    port: process.env.PORT,
+    port: Number(process.env.PORT),
+
+        // MongoDB Configuration
+
+    mongodbConnectionString: process.env.MONGODB_URL!,
+
 
     telegram: {
         apiId: Number(process.env.TELEGRAM_API_ID)!,

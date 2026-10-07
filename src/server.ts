@@ -1,13 +1,17 @@
 import express from "express";
+import cors from "cors";
+import { connectMongoDB } from "./db/index.ts"
 import { envConfig, logger } from "./config/index.ts";
 import apiRoutes from "./routes/index.ts";
 import { httpLogger } from "./middlewares/index.ts";
-import cors from "cors";
+
 
 const app = express();
 
+connectMongoDB();
 
-const allowedOrigins = ["http://localhost:3001", "https://vasudha.saurabhkushwaha.in" ]; 
+
+const allowedOrigins = ["http://localhost:3001" ]; 
 
 app.use(cors({
   origin: function (origin, callback) {
