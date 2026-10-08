@@ -8,7 +8,7 @@ const { apiId, apiHash} = envConfig.telegram;
 
 const telegramClient = new TelegramClientService(apiId, apiHash);
 telegramClient.connect();
-const telegramService = new TelegramService( telegramClient.getClient(), apiId, apiHash );
+const telegramService = new TelegramService(apiId, apiHash, telegramClient );
 const telegramController = new TelegramController(telegramService);
 
 export { telegramClient, telegramController };

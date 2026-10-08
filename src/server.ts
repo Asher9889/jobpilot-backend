@@ -31,11 +31,11 @@ app.use(cors({
   credentials: true
 }));
 
+app.use(httpLogger);
 app.use(express.json());
 app.use(cookieParser())
 
 
-app.use(httpLogger);
 
 app.use("/api", apiRoutes);
 

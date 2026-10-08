@@ -5,16 +5,21 @@ import TelegramAccountModel from "./telegram.model.ts";
 import type { IUser } from "../user/user.model.ts";
 import { encrypt } from "../../utils/crypto.ts";
 import UserModel from "../user/user.model.ts";
+import TelegramClientService from "./telegram-client.service.ts";
+import { ApiError } from "../../utils/index.ts";
+import { StatusCodes } from "http-status-codes";
 class TelegramService {
-    private readonly telegramClient: TelegramClient;
     private readonly apiId: number;
     private readonly apiHash: string;
+    private readonly telegramClientService: TelegramClientService;
+    private readonly telegramClient: TelegramClient;
 
 
-    constructor(telegramClient: TelegramClient, apiId: number, apiHash: string) {
-        this.telegramClient = telegramClient;
+    constructor(apiId: number, apiHash: string, telegramClientService: TelegramClientService) {
         this.apiId = apiId;
-        this.apiHash = apiHash
+        this.apiHash = apiHash;
+        this.telegramClientService = telegramClientService;
+        this.telegramClient = telegramClientService.getClient();
     }
 
     /**
@@ -38,7 +43,7 @@ class TelegramService {
             const profile = await this.getProfileSummary(user);
 
             const userSessionString = this.telegramClient.session.save();
-            if(!userSessionString) {
+            if (!userSessionString) {
                 throw new Error("Failed to retrieve user session string after QR authentication");
             }
             const encryptedSession = encrypt(userSessionString);
@@ -81,7 +86,48 @@ class TelegramService {
         }
 
     }
-    
+
+    getAvailableSources = async (loggedInUser: IUser) => {
+        const account = await TelegramAccountModel.findOne({ userId: loggedInUser._id }).lean();
+        if (!account) {
+            throw new ApiError(StatusCodes.NOT_FOUND, "Telegram account not connected");
+        }
+        
+        const sessionString = await this.telegramClientService.getSessionString(loggedInUser._id.toString());
+        logger.info("Fetched session string for fetching available sources");
+        const client = this.telegramClientService.createClientUsingSessionString(sessionString);
+        try { 
+
+            await client.connect();
+            const dialogs = await client.getDialogs({});
+
+            return dialogs
+                .filter((dialog) => dialog.isGroup || dialog.isChannel)
+                .map((dialog) => ({
+                    id: dialog.id?.toString() ?? null,
+                    name: dialog.name ?? null,
+                    title: dialog.title ?? null,
+                    isUser: dialog.isUser,
+                    isGroup: dialog.isGroup,
+                    isChannel: dialog.isChannel,
+                    isCommunity: dialog.isCommunity,
+                    pinned: dialog.pinned,
+                    archived: dialog.archived,
+                    folderId: dialog.folderId ?? null,
+                    unreadCount: dialog.unreadCount,
+                    unreadMentionsCount: dialog.unreadMentionsCount,
+                    lastMessageText: dialog.message?.message ?? null,
+                    lastMessageDate: dialog.date ?? null,
+                }));
+        } catch (error) {
+            logger.error({ error }, "Error fetching available sources from Telegram");
+            throw error;;
+        } 
+        finally {
+            await client.disconnect();
+        }
+    };
+
     private getProfileSummary = async (user: Api.TypeUser) => {
         const u = user instanceof Api.User ? user : undefined;
 
@@ -117,6 +163,7 @@ class TelegramService {
             isSelf: !!u?.self,
         };
     }
+
 }
 
 export default TelegramService;

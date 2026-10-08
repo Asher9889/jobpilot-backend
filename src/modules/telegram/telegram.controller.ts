@@ -1,5 +1,7 @@
+import { StatusCodes } from "http-status-codes";
 import TelegramService from "./telegram.service.ts";
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
+import { ApiResponse } from "../../utils/index.ts";
 
 
 class TelegramController {
@@ -56,7 +58,20 @@ class TelegramController {
 
     }
 
+    /**
+     * To get all available groups and channels name amd its meta data
+     */
+    getAvailableSources = async (req: Request, res: Response, next: NextFunction) => {
+        const loggedInUser = req.validatedUser;
+        try {
+            const sources = await this.telegramService.getAvailableSources(loggedInUser);
+            return ApiResponse.success(res, StatusCodes.OK, "Available sources fetched successfully", sources);
+        } catch (error) {
+            next(error);
+        }
+    }
 
+ 
 
 }
 
