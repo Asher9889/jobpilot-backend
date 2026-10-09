@@ -45,7 +45,15 @@ const envConfig = {
 
     models: {
         qwen2_5_7b: process.env.QWEN_2_5_7B!,
-    }
+    },
+
+    // minio Configuration
+    minio: {
+        endPoint: process.env.MINIO_ENDPOINT_STORAGE!,
+        accessKey: process.env.MINIO_ACCESS_KEY!,
+        secretKey: process.env.MINIO_SECRET_KEY!,
+        bucketName: process.env.MINIO_BUCKET_NAME!,
+    },
 
 
 }
