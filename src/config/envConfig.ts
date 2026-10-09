@@ -38,6 +38,15 @@ const envConfig = {
         refreshTokenMaxAgeMs: parseStringDurationToMs(process.env.JWT_REFRESH_TOKEN_MAX_AGE as StringValue, "JWT_REFRESH_TOKEN_MAX_AGE"),
     },
 
+    // ollama Configuration
+    ollama: {
+        host: process.env.OLLAMA_HOST!,
+    },
+
+    models: {
+        qwen2_5_7b: process.env.QWEN_2_5_7B!,
+    }
+
 
 }
 

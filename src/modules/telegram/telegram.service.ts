@@ -13,18 +13,26 @@ import { JobSourceModel } from "../job-source/job-source.model.ts";
 import { telegramListenerService } from "./telegram.module.ts";
 import type { TDisconnectTelegramResult, TTelegramMessagePayload } from "./telegram.types.ts";
 import { eventBus } from "../../events/index.ts";
+import { AIService } from "../ai/index.ts";
+import z from "zod";
+import JobModel from "../jobs/jobs.model.ts";
+import { JOB_SOURCE_PROVIDER } from "../job-source/job-source.constants.ts";
+
+
 class TelegramService {
     private readonly apiId: number;
     private readonly apiHash: string;
     private readonly telegramClientService: TelegramClientService;
     private readonly telegramClient: TelegramClient;
+    private readonly aiService: AIService;
 
 
-    constructor(apiId: number, apiHash: string, telegramClientService: TelegramClientService) {
+    constructor(apiId: number, apiHash: string, telegramClientService: TelegramClientService, aiService: AIService) {
         this.apiId = apiId;
         this.apiHash = apiHash;
         this.telegramClientService = telegramClientService;
         this.telegramClient = telegramClientService.initClient();
+        this.aiService = aiService;
     }
 
     /**
@@ -80,7 +88,7 @@ class TelegramService {
             eventBus.emit(TELEGRAM_EVENT.CONNECTED, payload);
             // telegramListener.startListeningForUser(loggedInUser._id.toString());
 
-            return profile; 
+            return profile;
         } catch (error) {
             await new TelegramAccountModel({
                 userId: loggedInUser._id.toString(),
@@ -127,7 +135,7 @@ class TelegramService {
         const sessionString = await this.telegramClientService.getSessionString(loggedInUser._id.toString());
         logger.info("Fetched session string for fetching available sources");
         const client = this.telegramClientService.createClientUsingSessionString(sessionString);
-        try { 
+        try {
             await client.connect();
             const dialogs = await client.getDialogs({});
 
@@ -155,7 +163,7 @@ class TelegramService {
         } catch (error) {
             logger.error({ error }, "Error fetching available sources from Telegram");
             throw error;;
-        } 
+        }
         finally {
             await client.disconnect();
         }
@@ -218,8 +226,38 @@ class TelegramService {
      */
 
     handleNewMessageJob = async (jobPayload: TTelegramMessagePayload) => {
-        const { userId, msgId, chatId, text } = jobPayload;
-        // Implement the logic for handling the new message job here
+        try {
+            logger.info("Running decision model");
+            const { userId, msgId, chatId, text, sourceName, sourceUsername, sourceType } = jobPayload;
+
+            const result = await this.aiService.classifyJob(text);
+
+            if (result.noul < 0.7) {
+                logger.info({ text: text.slice(0, 20) }, "Discarding message as not a job posting");
+                return;
+            }
+
+            const structuredJob = await this.aiService.jobToJson(text);
+
+            const job = {
+                ...structuredJob, userId, rawMessage: text, source: {
+                    provider: JOB_SOURCE_PROVIDER.TELEGRAM,
+                    externalSourceId: chatId,
+                    messageId: msgId,
+                    sourceName: sourceName, // channel or group name
+                    sourceType: sourceType,
+                    messageDate: new Date(),
+                }
+            };
+
+            await JobModel.create(job);
+
+            logger.info({ userId, msgId, chatId, structuredJob }, "Adding structured job to processing queue");
+        } catch (error) {
+            logger.error({ jobPayload, err: error }, "Failed to process Telegram message job");
+            throw error;
+        }
+
     }
 
     /**

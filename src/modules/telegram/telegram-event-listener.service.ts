@@ -34,9 +34,9 @@ export default class TelegramListenerService {
             }
 
             // Prevent duplicate listener registration
-            if (this.clients.has(userId)) {
-                return;
-            }
+            // if (this.clients.has(userId)) {
+            //     return;
+            // }
 
             const client = await this.telegramClientService.getClient(userId);
 
@@ -87,35 +87,21 @@ export default class TelegramListenerService {
         const msg = event.message;
 
         const accounts = await JobSourceModel.find(
-            { userId: userId, status: JOB_SOURCE_STATUS.ACTIVE },
-            { externalSourceId: 1 }
+            { userId, status: JOB_SOURCE_STATUS.ACTIVE, deletedAt:null  },
+            { externalSourceId: 1, sourceName: 1, sourceUsername: 1, type: 1 }
         ).lean();
 
         // ignore messages from unregistered sources
-        if(!accounts.some((a) => a.externalSourceId === msg.chatId?.toString())) {
-            // logger.info({ userId, msgId: msg.id, chatId: msg.chatId?.toString() }, "New Telegram message from unregistered source");
-            return;
-        }
+        const externalSourceId = msg.chatId!.toString() ?? "";
+        const source = accounts.find((a) => a.externalSourceId === externalSourceId);
+        if (!source) return;
 
-        console.log("New Telegram message", msg.text);
-
-        const payload: TTelegramMessagePayload = { userId, msgId: msg.id, chatId: msg.chatId?.toString(), text: msg.text  };
+        const payload: TTelegramMessagePayload = { userId, msgId: msg.id, chatId: externalSourceId, text: msg.text, sourceName: source.sourceName, sourceUsername: source.sourceUsername, sourceType: source.type };
 
         // adding data to queue for processing.
         logger.info({ userId, msgId: msg.id, chatId: msg.chatId?.toString() }, "Adding Telegram message to processing queue");
         await telegramQueue.add(TELEGRAM_QUEUE.JOBS.PROCESS_MESSAGE, payload, { removeOnComplete: true, removeOnFail: false, attempts: 5, backoff: { type: "exponential", delay: 10_000 } });
 
-
-        // logger.info({
-        //     userId,
-        //     msgId: msg.id,
-        //     chatId: msg.chatId?.toString(),
-        //     senderId: msg.senderId?.toString(),
-        //     isChannel: event.isChannel,
-        //     out: msg.out,
-        //     media: msg.media?.className ?? null,
-        //     text: msg.text,
-        // }, "New Telegram message");
     }
 
 

@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const extractedJobSchema = z.object({
-  isJobPosting: z.boolean(),
 
   company: z.string().nullable(),
 
@@ -21,20 +20,10 @@ export const extractedJobSchema = z.object({
   skills: z.array(z.string()),
 
   application: z.object({
-    method: z.enum([
-      "EMAIL",
-      "URL",
-      "PHONE",
-      "TELEGRAM",
-      "OTHER",
-      "UNKNOWN",
-    ]),
     email: z.string().nullable(),
     phone: z.string().nullable(),
     applyUrl: z.string().nullable(),
+    companyWebsite: z.string().nullable(),
   }),
 });
 
-export type ExtractedJob = z.infer<
-  typeof extractedJobSchema
->;
