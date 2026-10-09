@@ -6,7 +6,7 @@ const httpLogger = pinoHttp({
 
     serializers: {
         // req: () => undefined,
-        // res: () => undefined,
+        res: () => undefined,
     },
 
     customSuccessMessage: (req, res) => {

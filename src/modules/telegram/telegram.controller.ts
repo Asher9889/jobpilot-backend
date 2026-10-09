@@ -71,7 +71,23 @@ class TelegramController {
         }
     }
 
- 
+    /**
+     * Unlink the connected Telegram account. Idempotent: never 4xx for "not connected".
+     */
+    disconnectTelegram = async (req: Request, res: Response, next: NextFunction) => {
+        const loggedInUser = req.validatedUser;
+        try {
+            const result = await this.telegramService.disconnectTelegram(loggedInUser);
+
+            const message = result.alreadyDisconnected
+                ? "Telegram is already disconnected"
+                : "Telegram disconnected successfully";
+
+            return ApiResponse.success(res, StatusCodes.OK, message, result);
+        } catch (error) {
+            return next(error);
+        }
+    }
 
 }
 

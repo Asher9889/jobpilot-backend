@@ -6,13 +6,12 @@ import { connectMongoDB } from "./db/index.ts"
 import { envConfig, logger } from "./config/index.ts";
 import apiRoutes from "./routes/index.ts";
 import { httpLogger } from "./middlewares/index.ts";
+import { telegramListenerService } from "./modules/telegram/telegram.module.ts";
 
 const app = express();
 
-connectMongoDB().catch((error) => {
-    logger.error("Failed to connect to MongoDB", error);
-    process.exit(1);
-});
+connectMongoDB().then(() => telegramListenerService.restoreListeners())
+    .catch((err) => logger.error({ err }, "Failed to restore Telegram listeners"));;
 
 const allowedOrigins = ["http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://localhost:3000" ]; 
 
@@ -31,7 +30,10 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(httpLogger);
+// listen listen for events
+telegramListenerService.register();
+
+// app.use(httpLogger);
 app.use(express.json());
 app.use(cookieParser())
 

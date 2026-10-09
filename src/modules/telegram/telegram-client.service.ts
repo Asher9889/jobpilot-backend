@@ -4,6 +4,7 @@ import { Api, TelegramClient } from "teleproto";
 import "node:process";
 import TelegramAccountModel from "./telegram.model.ts";
 import { decrypt } from "../../utils/index.ts";
+import mongoose from "mongoose";
 
 class TelegramClientService {
     private readonly apiId: number;
@@ -16,7 +17,8 @@ class TelegramClientService {
         this.client = this.initClient();
     }
 
-    private initClient = () => {
+    /** Fresh client backed by an empty session — used for the QR sign-in flow. */
+    initClient = () => {
         /**
          * empty string means create a new sessionString.
          * after that using it we will connect to telegram server.
@@ -39,20 +41,23 @@ class TelegramClientService {
     }
 
     async getSessionString(userId: string): Promise<string> {
-        const account = await TelegramAccountModel.findOne({ userId }, { userSessionString: 1 }).lean();
+        const account = await TelegramAccountModel.findOne({ userId: new mongoose.Types.ObjectId(userId) }, { userSessionString: 1 }).lean();
 
         if (!account) {
             throw new Error("Telegram account not connected");
         }
 
+        if (!account.userSessionString) {
+            throw new Error("Telegram session is missing");
+        }
+
         return decrypt(account.userSessionString);
     }
 
-    getClient = (): TelegramClient => {
-        if (!this.client) {
-            throw new Error("Client is not initiated Yet. Please First Create a client")
-        }
-        return this.client;
+
+    getClient = async (userId: string): Promise<TelegramClient> => {
+        const sessionString = await this.getSessionString(userId);
+        return this.createClientUsingSessionString(sessionString);
     }
 
 

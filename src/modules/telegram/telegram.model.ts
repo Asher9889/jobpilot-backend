@@ -28,7 +28,7 @@ export const telegramAccountSchema = new mongoose.Schema<ITelegramAccount>({
     lastError: { type: String, default: null } 
 }, { timestamps: true, versionKey: false });
 
-telegramAccountSchema.index({ userId: 1 }, { unique: true });
+// telegramAccountSchema.index({ userId: 1 }, { unique: true });
 
 const TelegramAccountModel = mongoose.model<ITelegramAccount>("TelegramAccount", telegramAccountSchema, "telegram_accounts");
 

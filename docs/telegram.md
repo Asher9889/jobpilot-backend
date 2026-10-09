@@ -10,6 +10,7 @@ MTProto client module for linking a user's Telegram account to JobPilot via QR-c
 - [HTTP API](#http-api)
   - [GET /api/v1/telegram/auth/qr](#get-apiv1telegramauthqr)
   - [GET /api/v1/telegram/sources/available](#get-apiv1telegramsourcesavailable)
+  - [DELETE /api/v1/telegram](#delete-apiv1telegram)
 - [Architecture](#architecture)
   - [TelegramClientService](#telegramclientservice)
   - [TelegramService](#telegramservice)
@@ -197,11 +198,47 @@ Returns the connected account's **groups and channels** (dialogs), serialized to
       "unreadCount": 4,
       "unreadMentionsCount": 0,
       "lastMessageText": "Hiring: Backend Engineer",
-      "lastMessageDate": 1728000000
+      "lastMessageDate": 1728000000,
+      "isMonitored": true
     }
   ]
 }
 ```
+
+**Field reference:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string \| null | Telegram chat ID, e.g. `"-1001234567890"` — this is what you send as `externalSourceId` |
+| `name` | string \| null | Dialog display name |
+| `title` | string \| null | Channel/group title (mirrors `name` for channels) |
+| `isUser` | boolean | Always `false` here — DMs are filtered out |
+| `isGroup` | boolean | See the filter semantics table below |
+| `isChannel` | boolean | See the filter semantics table below |
+| `isCommunity` | boolean | Always `false` — communities are excluded by default |
+| `pinned` | boolean | Dialog is pinned |
+| `archived` | boolean | Dialog is archived |
+| `folderId` | number \| null | Telegram folder ID, `null` if unfiled |
+| `unreadCount` | number | Unread message count |
+| `unreadMentionsCount` | number | Unread mention count |
+| `lastMessageText` | string \| null | Text of the most recent message, `null` if none/unsupported |
+| `lastMessageDate` | number \| null | Unix timestamp (seconds) of the most recent message |
+| `isMonitored` | boolean | **`true` if you have already added this chat as a job source** — see below |
+
+#### `isMonitored`
+
+```json
+"isMonitored": true
+```
+
+`true` when a `job_sources` row exists for this user whose `externalSourceId` equals the dialog's `id`. Use it to render **"Added"** instead of an "Add" button, and to pre-tick already-selected chats.
+
+Matched by string equality on the chat ID only. It deliberately ignores:
+
+- **`status`** — a `PAUSED` or `UNAVAILABLE` source still reports `true` (it exists; it just isn't active). Cross-check with `GET /api/v1/job-sources` if you need the status.
+- **`provider`** — any provider's row counts, not just `TELEGRAM`.
+
+> ⚠️ It also ignores **`deletedAt`**, so a *soft-deleted* source would still report `true`. Harmless today because no delete endpoint exists yet, but this must be fixed alongside one — see [Known limitations](#known-limitations).
 
 **Errors:**
 
@@ -215,8 +252,10 @@ Returns the connected account's **groups and channels** (dialogs), serialized to
 
 1. Loads the user's `TelegramAccount`; 404 if absent.
 2. Decrypts the stored session string and builds a **fresh** `TelegramClient` from it (not the module-level client).
-3. Connects, fetches `getDialogs({})`, and **filters to `isGroup || isChannel`** — private chats/DMs are dropped.
-4. Maps each `Dialog` to a plain object and **disconnects in `finally`**.
+3. Connects and fetches `getDialogs({})`.
+4. Loads the user's `job_sources` (projection: `externalSourceId` only) to compute `isMonitored`.
+5. **Filters to `isGroup || isChannel`** — private chats/DMs are dropped.
+6. Maps each `Dialog` to a plain object, tagging it with `isMonitored`, and **disconnects in `finally`**.
 
 > ⚠️ Dialogs must never be returned raw. `teleproto`'s `Dialog` class holds a `_client` back-reference (`TelegramClient` → `updateManager` → `client`), so `JSON.stringify` throws `Converting circular structure to JSON`. The `.map()` to a plain object is what makes this endpoint serializable.
 
@@ -231,6 +270,84 @@ Filter semantics (from `teleproto/tl/custom/dialog.js`):
 
 `IterDialogsParams` has no server-side type filter, so all dialogs are fetched and filtered locally. Communities are excluded because `includeCommunities` defaults to `false`.
 
+---
+
+### DELETE /api/v1/telegram
+
+Unlinks the connected Telegram account.
+
+- **Method:** `DELETE`
+- **Path:** `/api/v1/telegram`
+- **Auth:** required (`authenticate`) — no `authorize`, any logged-in user
+- **Request body / query params:** none
+
+**What it does, in order:**
+
+1. Loads the `TelegramAccount`. If it is absent **or** `status !== CONNECTED`, it short-circuits to the already-disconnected response (still clearing `User.telegram` so no stale pointer survives).
+2. Best-effort **remote revocation**: builds a client from the stored session and calls `client.logOut()` → `auth.logOut`, which makes Telegram invalidate the auth key server-side.
+3. Stops the in-memory event listener for this user (`stopListeningForUser` → `client.disconnect()`).
+4. In a **transaction**: sets `status: DISCONNECTED`, `userSessionString: null`, `lastError: null`, and `User.telegram: null`.
+
+**Success (200) — was connected:**
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Telegram disconnected successfully",
+  "data": {
+    "status": "DISCONNECTED",
+    "revokedRemotely": true,
+    "alreadyDisconnected": false
+  }
+}
+```
+
+**Success (200) — idempotent no-op:**
+
+Returned when the account was never connected, or was already `DISCONNECTED` / `EXPIRED` / `REVOKED` / `ERROR`. Disconnecting twice is **not** an error.
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Telegram is already disconnected",
+  "data": {
+    "status": "DISCONNECTED",
+    "revokedRemotely": false,
+    "alreadyDisconnected": true
+  }
+}
+```
+
+**Errors:**
+
+| Status | Cause |
+|---|---|
+| `401` | Missing/expired `accessToken` cookie, invalid token, inactive account |
+
+No `404`/`409` for "not connected" — by design the endpoint never fails for an already-clean state.
+
+#### `revokedRemotely`
+
+`client.logOut()` returns a **boolean**, not a throw: `true` means Telegram accepted the logout, `false` means the call failed (network, unauthorized key). **The local session is wiped either way**, so `revokedRemotely: false` still leaves the account properly disconnected — it just means the auth key may still be technically valid on Telegram's side. The failure is logged and never surfaced as an HTTP error.
+
+#### What happens to job sources
+
+Nothing. `job_sources` rows are **not** touched — they stay `ACTIVE` and remain listable via `GET /api/v1/job-sources`. Only *adding new* ones is blocked (`POST /job-sources` → `400 Telegram account is not connected (status: DISCONNECTED)`), because resolving names requires Telegram.
+
+Reconnecting via `GET /api/v1/telegram/auth/qr` resumes everything without any restore step.
+
+**Behavior after disconnect:**
+
+| Endpoint | Result |
+|---|---|
+| `GET /telegram/auth/qr` | ✅ works — the reconnect path |
+| `GET /telegram/sources/available` | `400 Telegram account is not connected (status: DISCONNECTED)` |
+| `POST /job-sources` | `400 Telegram account is not connected (status: DISCONNECTED)` |
+| `GET /job-sources` | ✅ `200` unchanged — no Telegram call involved |
+| `getCurrentUser` (auth) | `telegram` omitted (`User.telegram` is `null`) |
+
 ## Architecture
 
 ### TelegramClientService
@@ -243,12 +360,21 @@ new TelegramClientService(apiId, apiHash)
 
 | Member | Description |
 |---|---|
-| `initClient()` (private) | Creates `new TelegramClient(new StringSession(""), apiId, apiHash, { connectionRetries: 5 })` — an **empty** session used only for the QR sign-in |
-| `getClient()` | Returns the underlying `TelegramClient` (throws if not initialized) |
-| `connect()` | `client.connect()` — establishes the MTProto connection |
-| `getMe()` | `client.getMe()` — returns the authenticated `Api.User` |
+| `initClient()` | Creates `new TelegramClient(new StringSession(""), apiId, apiHash, { connectionRetries: 5 })` — an **empty** session used only for the QR sign-in. Public so `TelegramService` can build the QR client. |
 | `createClientUsingSessionString(s)` | Builds a throwaway `TelegramClient` from a decrypted session string |
-| `getSessionString(userId)` | Loads `userSessionString` from Mongo and `decrypt()`s it; throws if no account exists |
+| `getSessionString(userId)` | Loads `userSessionString` from Mongo and `decrypt()`s it. Throws `"Telegram account not connected"` if the row is absent, `"Telegram session is missing"` if `userSessionString` is null — the second guard is what keeps a disconnected account from reaching `decrypt(null)`. |
+| `getClient(userId)` | `async` — loads the session string and returns a ready client |
+| `connect()` | `client.connect()` — establishes the MTProto connection on the module-level client |
+| `getMe()` | `client.getMe()` — returns the authenticated `Api.User` |
+
+### TelegramListenerService
+
+`telegram-event-listener.service.ts` — one long-lived client + handler per user.
+
+| Member | Description |
+|---|---|
+| `startListeningForUser(userId)` | Creates a client for the user, registers a `NewMessage` handler, and **stores it in `clients: Map<string, TelegramClient>`**. No-ops if already listening. |
+| `stopListeningForUser(userId)` | Looks up the stored client, `await client.disconnect()`, deletes it from the map. No-ops (with a log) if nothing was listening. Called by `DELETE /telegram`. |
 
 ### TelegramService
 
@@ -258,6 +384,9 @@ new TelegramClientService(apiId, apiHash)
 |---|---|---|
 | `startQrAuth(onQrCode, signal, loggedInUser)` | ✅ implemented | Calls `telegramClient.signInUserWithQrCode({ apiId, apiHash }, { qrCode, onError, abortSignal })`. On success: derives a profile summary, encrypts the session string, upserts `TelegramAccount` (status `CONNECTED`), sets `User.telegram`, returns the profile. On failure: writes an `ERROR` row and rethrows. |
 | `getAvailableSources(loggedInUser)` | ✅ implemented | Returns groups/channels for the linked account as plain objects. Uses a per-request client that is always disconnected in `finally`. |
+| `disconnectTelegram(loggedInUser)` | ✅ implemented | Idempotent unlink: short-circuits if not `CONNECTED`, otherwise `revokeSessionRemotely` → `stopListeningForUser` → transactional wipe of `userSessionString` + `status` + `User.telegram`. |
+| `requireConnectedAccount(userId)` (private) | ✅ implemented | Shared precondition used by `getAvailableSources`: `404` no row → `400` status ≠ `CONNECTED` → `409` session missing. |
+| `revokeSessionRemotely(account)` (private) | ✅ implemented | `decrypt` → `createClientUsingSessionString` → `connect()` → `logOut()`. Returns `false` instead of throwing on any failure; always `disconnect()`s in `finally`. |
 | `getProfileSummary(user)` (private) | ✅ implemented | Projects an `Api.User` into a JSON-safe profile (name, phone, base64 avatar, flags). |
 
 Removed stubs (`startAuth`, `verifyCode`, `verifyPassword`, `isAuthenticated`, `getCurrentUser`, `getSession`, `logout`) are no longer part of the class.
@@ -270,6 +399,7 @@ Removed stubs (`startAuth`, `verifyCode`, `verifyPassword`, `isAuthenticated`, `
 |---|---|---|
 | `startQrAuth(req, res)` | `GET /auth/qr` | Sets SSE headers, wires `AbortController` to request close, streams `qr` / `done` / `error` events, ends response. |
 | `getAvailableSources(req, res, next)` | `GET /sources/available` | Delegates to the service and returns `ApiResponse.success`. Errors go to `next(error)` → `globalErrorHandler`. |
+| `disconnectTelegram(req, res, next)` | `DELETE /` | Delegates to the service; picks `"Telegram disconnected successfully"` vs `"Telegram is already disconnected"` off `result.alreadyDisconnected`. Always `200`. |
 
 ### Telegram module (composition root)
 
@@ -402,7 +532,42 @@ Internally the `qr` SSE event is emitted each time the `qrCode` callback fires (
 - Only the QR auth flow is implemented; phone/OTP and 2FA are not wired (the `password` resolver in `startQrAuth` is commented out, so accounts with 2FA enabled will fail).
 - The module connects to Telegram eagerly at import time (no lazy/delayed connection or graceful shutdown handling).
 - `getAvailableSources` creates a new `TelegramClient` per request and fetches **all** dialogs before filtering locally — expensive for accounts with many chats.
+- `isMonitored` in `getAvailableSources` queries `job_sources` **without a `deletedAt: null` filter**, unlike `getJobSources`. Once a soft-delete endpoint exists, a deleted source would still report `isMonitored: true`. Add `deletedAt: null` to that `find()` when implementing deletion.
 - `envConfig` does not validate the Telegram credentials beyond the key-length check in `crypto.ts`.
 - The module-level client used for QR sign-in is a single shared instance; concurrent QR logins from different users would collide on the same session.
 - The `catch` block in `startQrAuth` unconditionally inserts an `ERROR` row, overwriting any previously `CONNECTED` record — a transient network error during a re-auth will clobber a good session.
-- `logger.info({ sessionString: userSessionString }, ...)` in `startQrAuth` still logs the plaintext session string; this should be removed before production.
+- `revokeSessionRemotely` swallows all failures by design: when Telegram is unreachable the account still disconnects locally, but the auth key stays valid server-side (reported as `revokedRemotely: false`).
+- `stopListeningForUser` calls `client.disconnect()` but does not call `removeEventHandler` — it needs the `EventBuilder` reference, which `startListeningForUser` does not currently retain. `disconnect()` stops the handlers anyway, so this is cosmetic until the listener can restart without recreating the client.
+
+# Listener
+```javascript
+User A
+  │
+  └── TelegramClient A
+          │
+          └── Listener A
+                  ├── Source A1
+                  ├── Source A2
+                  └── Source A3
+
+
+User B
+  │
+  └── TelegramClient B
+          │
+          └── Listener B
+                  ├── Source B1
+                  └── Source B2
+
+
+User C
+  │
+  └── TelegramClient C
+          │
+          └── Listener C
+                  ├── Source C1
+                  ├── Source C2
+                  └── Source C3
+
+1 Telegram account/session → 1 Telegram client → 1 message listener
+```

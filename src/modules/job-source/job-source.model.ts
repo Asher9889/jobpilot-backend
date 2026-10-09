@@ -12,6 +12,8 @@ export interface IJobSource extends mongoose.Document {
     sourceUsername: string;
     status: TJobSourceStatus;
     deletedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 
@@ -72,6 +74,12 @@ const jobSourceSchema = new mongoose.Schema({
 }, { timestamps: true, versionKey: false }
 );
 
-export const jobSourceModel = mongoose.model<IJobSource>("JobSource", jobSourceSchema, "job_sources");
+// Soft deleted rows stay out of the constraint so a source can be re-added after being removed.
+jobSourceSchema.index(
+    { userId: 1, provider: 1, externalSourceId: 1 },
+    { unique: true, partialFilterExpression: { deletedAt: null }, name: "uniq_active_job_source" },
+);
 
-export default jobSourceModel;
+export const JobSourceModel = mongoose.model<IJobSource>("JobSource", jobSourceSchema, "job_sources");
+
+export default JobSourceModel;

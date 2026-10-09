@@ -6,3 +6,17 @@ export const TELEGRAM_ACCOUNT_STATUS = {
   ERROR: "ERROR",
 } as const;
 
+export const TELEGRAM_QUEUE = {
+  NAME: "telegram",
+  PREFIX: "jobpilot",
+
+  JOBS: {
+    PROCESS_MESSAGE: "PROCESS_MESSAGE",
+  },
+} as const;
+
+export const TELEGRAM_EVENT = {
+  CONNECTED: "telegram:connected",
+  DISCONNECTED: "telegram:disconnected",
+  ERROR: "telegram:error",
+} as const;

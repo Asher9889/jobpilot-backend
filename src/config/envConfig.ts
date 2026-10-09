@@ -9,6 +9,13 @@ const envConfig = {
 
     mongodbConnectionString: process.env.MONGODB_URL!,
 
+    // redis Configuration
+    redis: {
+        host: process.env.REDIS_SERVER_HOST!,
+        port: Number(process.env.REDIS_SERVER_PORT!),
+        password: process.env.REDIS_SERVER_PASSWORD!,
+    },
+
     // Super Admin Configuration
     superAdmin: {
         email: process.env.SUPER_ADMIN_EMAIL!,
