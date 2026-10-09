@@ -4,7 +4,6 @@ import logger from "./logger.ts";
 
 
 const { host, port, password } = envConfig.redis;
-console.log("Redis Config:", { host, port, password: password ? "****": undefined }); // Mask the password in logs for security
 
 const redisConnectionOptions = {
   host: host,

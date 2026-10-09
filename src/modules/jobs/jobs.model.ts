@@ -9,12 +9,6 @@ const jobSchema = new Schema(
             default: null,
             trim: true,
         },
-        userId: {
-            type: Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-            index: true,
-        },
 
         roles: {
             type: [String],
@@ -49,6 +43,12 @@ const jobSchema = new Schema(
 
         source: {
             _id: false,
+            userId: {
+                type: Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+                index: true,
+            },
             provider: {
                 type: String,
                 enum: Object.values(JOB_SOURCE_PROVIDER),
@@ -76,14 +76,7 @@ const jobSchema = new Schema(
     { timestamps: true, versionKey: false }
 );
 
-jobSchema.index(
-    {
-        "source.provider": 1,
-        "source.externalSourceId": 1,
-        "source.messageId": 1,
-    },
-    { unique: true }
-);
+jobSchema.index({"source.provider": 1, "source.externalSourceId": 1, "source.messageId": 1}, { unique: true });
 
 const JobModel = model("Job", jobSchema);
 

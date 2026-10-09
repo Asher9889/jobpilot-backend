@@ -240,7 +240,8 @@ class TelegramService {
             const structuredJob = await this.aiService.jobToJson(text);
 
             const job = {
-                ...structuredJob, userId, rawMessage: text, source: {
+                ...structuredJob, rawMessage: text, source: {
+                    userId,
                     provider: JOB_SOURCE_PROVIDER.TELEGRAM,
                     externalSourceId: chatId,
                     messageId: msgId,
