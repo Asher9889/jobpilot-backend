@@ -1,3 +1,4 @@
 import candidateProfileRoutes from "./candidate-profile.routes.ts";
+import CandidateProfileModel from "./candidate-profile.model.ts";
 
-export { candidateProfileRoutes };
+export { candidateProfileRoutes, CandidateProfileModel };

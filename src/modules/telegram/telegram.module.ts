@@ -12,7 +12,7 @@ const { apiId, apiHash} = envConfig.telegram;
 const telegramClient = new TelegramClientService(apiId, apiHash);
 // telegramClient.connect();
 const telegramListenerService = new TelegramListenerService(telegramClient, eventBus);
-const telegramService = new TelegramService(apiId, apiHash, telegramClient, aiService );
+const telegramService = new TelegramService(apiId, apiHash, telegramClient, aiService, eventBus );
 const telegramController = new TelegramController(telegramService);
 const telegramWorker = new TelegramWorker(telegramService);
 

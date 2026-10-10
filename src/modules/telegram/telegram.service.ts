@@ -12,11 +12,12 @@ import { StatusCodes } from "http-status-codes";
 import { JobSourceModel } from "../job-source/job-source.model.ts";
 import { telegramListenerService } from "./telegram.module.ts";
 import type { TDisconnectTelegramResult, TTelegramMessagePayload } from "./telegram.types.ts";
-import { eventBus } from "../../events/index.ts";
+import { EventBus, eventBus } from "../../events/index.ts";
 import { AIService } from "../ai/index.ts";
 import z from "zod";
 import JobModel from "../jobs/jobs.model.ts";
 import { JOB_SOURCE_PROVIDER } from "../job-source/job-source.constants.ts";
+import { JOB_MATCHING_QUEUE, JobMatchingPayload, jobMatchingQueue } from "../job-matching/index.ts";
 
 
 class TelegramService {
@@ -25,14 +26,17 @@ class TelegramService {
     private readonly telegramClientService: TelegramClientService;
     private readonly telegramClient: TelegramClient;
     private readonly aiService: AIService;
+    private readonly eventBus: EventBus;
 
 
-    constructor(apiId: number, apiHash: string, telegramClientService: TelegramClientService, aiService: AIService) {
+
+    constructor(apiId: number, apiHash: string, telegramClientService: TelegramClientService, aiService: AIService, eventBus: EventBus) {
         this.apiId = apiId;
         this.apiHash = apiHash;
         this.telegramClientService = telegramClientService;
         this.telegramClient = telegramClientService.initClient();
         this.aiService = aiService;
+        this.eventBus = eventBus;
     }
 
     /**
@@ -85,7 +89,7 @@ class TelegramService {
 
             // create a event listener to listen for updates from telegram server
             const payload: { userId: string } = { userId: loggedInUser._id.toString() };
-            eventBus.emit(TELEGRAM_EVENT.CONNECTED, payload);
+            this.eventBus.emit(TELEGRAM_EVENT.CONNECTED, payload);
             // telegramListener.startListeningForUser(loggedInUser._id.toString());
 
             return profile;
@@ -100,6 +104,7 @@ class TelegramService {
                 // lastConnectedAt: new Date(),
                 lastError: error instanceof Error ? error.message : "Failed to connect to Telegram",
             }).save();
+            this.eventBus.emit(TELEGRAM_EVENT.ERROR, { userId: loggedInUser._id.toString(), error: error instanceof Error ? error.message : "Failed to connect to Telegram" });
             console.log("Error during QR authentication:", error);
             logger.error({ error }, "Error during QR authentication");
             throw error;
@@ -251,9 +256,13 @@ class TelegramService {
                 }
             };
 
-            await JobModel.create(job);
+            const createdJob = await JobModel.create(job);
+            const jobId = createdJob._id.toString();
 
-            logger.info({ userId, msgId, chatId, structuredJob }, "Adding structured job to processing queue");
+            const jobMatchingQueuePayload: JobMatchingPayload = { userId, jobId };
+
+            this.eventBus.emit(JOB_MATCHING_QUEUE.JOBS.PROCESS_JOB_MATCHING, jobMatchingQueuePayload);
+            logger.info({ jobId, userId }, "Event emitted for processing job matching to candidate.");
         } catch (error) {
             logger.error({ jobPayload, err: error }, "Failed to process Telegram message job");
             throw error;

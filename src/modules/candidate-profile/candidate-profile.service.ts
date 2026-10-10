@@ -4,7 +4,7 @@ import { ApiError } from "../../utils/index.ts";
 import { logger } from "../../config/index.ts";
 import type { IUser } from "../user/user.model.ts";
 import minioService from "../storage/s3.service.ts";
-import { CandidateProfileModel } from "./candidate-profile.model.ts";
+import CandidateProfileModel from "./candidate-profile.model.ts";
 import type { ICandidateProfile } from "./candidate-profile.model.ts";
 import type {
     ProfileCompletionResult,

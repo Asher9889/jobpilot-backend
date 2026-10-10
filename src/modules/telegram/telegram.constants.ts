@@ -1,3 +1,5 @@
+import { envConfig } from "../../config/index.ts";
+
 export const TELEGRAM_ACCOUNT_STATUS = {
   CONNECTED: "CONNECTED",
   DISCONNECTED: "DISCONNECTED",
@@ -8,7 +10,7 @@ export const TELEGRAM_ACCOUNT_STATUS = {
 
 export const TELEGRAM_QUEUE = {
   NAME: "telegram",
-  PREFIX: "jobpilot",
+  PREFIX: envConfig.queue.prefix,
 
   JOBS: {
     PROCESS_MESSAGE: "PROCESS_MESSAGE",

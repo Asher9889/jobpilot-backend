@@ -16,6 +16,9 @@ const envConfig = {
         password: process.env.REDIS_SERVER_PASSWORD!,
     },
 
+    queue : {
+        prefix: process.env.QUEUE_PREFIX!,
+    },
     // Super Admin Configuration
     superAdmin: {
         email: process.env.SUPER_ADMIN_EMAIL!,

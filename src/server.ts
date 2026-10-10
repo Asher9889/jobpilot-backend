@@ -7,6 +7,7 @@ import { envConfig, logger } from "./config/index.ts";
 import apiRoutes from "./routes/index.ts";
 import { httpLogger } from "./middlewares/index.ts";
 import { telegramListenerService } from "./modules/telegram/telegram.module.ts";
+import { jobMatchingEventListener } from "./modules/job-matching/index.ts";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use(cors({
 
 // listen listen for events
 telegramListenerService.register();
+jobMatchingEventListener.register();
 
 // app.use(httpLogger);
 app.use(express.json());

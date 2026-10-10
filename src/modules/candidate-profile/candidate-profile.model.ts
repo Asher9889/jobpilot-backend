@@ -223,8 +223,9 @@ candidateProfileSchema.methods.calculateProfileCompletion = function calculatePr
     };
 };
 
-export const CandidateProfileModel = model<ICandidateProfile>("CandidateProfile", candidateProfileSchema, "candidates_profile");
+const CandidateProfileModel = model<ICandidateProfile>("CandidateProfile", candidateProfileSchema, "candidates_profile");
 
+export default CandidateProfileModel;
 /**
  * Profile section	Weight
 Basic details and headline	10%
