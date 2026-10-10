@@ -36,6 +36,8 @@ const jobMatchSchema = new Schema(
 );
 
 jobMatchSchema.index({ userId: 1, jobId: 1 }, { unique: true });
+// Supports GET /job-matches: scoped to a user, highest score first.
+jobMatchSchema.index({ userId: 1, score: -1, createdAt: -1 });
 
 const JobMatchModel = model("JobMatch", jobMatchSchema, "job_matches");
 

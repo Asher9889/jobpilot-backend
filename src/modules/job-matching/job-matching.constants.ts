@@ -6,6 +6,9 @@ const JOB_MATCHING_STATUS = {
   COMPLETED: "COMPLETED"
 } as const;
 
+/** List rows carry a truncated reason; the full text lives on the detail endpoint. */
+const REASON_EXCERPT_MAX_LENGTH = 120;
+
 const JOB_MATCHING_QUEUE = {
   NAME: "job-matching-queue",
   PREFIX: envConfig.queue.prefix,
@@ -15,4 +18,4 @@ const JOB_MATCHING_QUEUE = {
   },
 } as const;
 
-export { JOB_MATCHING_STATUS, JOB_MATCHING_QUEUE };
+export { JOB_MATCHING_STATUS, JOB_MATCHING_QUEUE, REASON_EXCERPT_MAX_LENGTH };
