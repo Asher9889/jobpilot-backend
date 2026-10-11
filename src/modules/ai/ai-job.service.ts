@@ -9,6 +9,7 @@ import JobModel from "../jobs/jobs.model.ts";
 import { UserModel } from "../user/index.ts";
 import { CandidateProfileModel } from "../candidate-profile/index.ts";
 import { jobMatchResultSchema } from "../job-matching/job-matching.schema.ts";
+import { UnrecoverableError } from "bullmq";
 
 class AIService {
     private readonly ollama: typeof ollamaClient;
@@ -207,10 +208,10 @@ class AIService {
                 JobModel.findOne({ _id: jobData.jobId }).lean(),
             ]);
             if (!job) {
-                throw new Error(`Job with ID ${jobData.jobId} does not exist`);
+                throw new UnrecoverableError(`Job with ID ${jobData.jobId} does not exist`);
             }
             if (!candidate) {
-                throw new Error(`User with ID ${jobData.userId} does not exist`);
+                throw new UnrecoverableError(`Candidate profile for user ${jobData.userId} does not exist`);
             }
 
             // Implement the logic for scoring the job to the user here

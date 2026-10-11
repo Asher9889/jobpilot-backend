@@ -3,6 +3,7 @@ import EventBus from "../../events/eventBus.ts";
 import { JOB_MATCHING_QUEUE, JobMatchingPayload } from "./index.ts";
 import JobMatchingWorker from "./job-matching.worker.ts";
 import { logger } from "../../config/index.ts";
+import { CandidateProfileModel } from "../candidate-profile/index.ts";
 
 class JobMatchingEventListener {
     private readonly eventBus: EventBus;
@@ -21,6 +22,15 @@ class JobMatchingEventListener {
 
     private handleJobMatching = async (payload: JobMatchingPayload) => {
         try{
+
+            // Scoring requires the profile row to exist; create it lazily so a user who
+            // never opened the profile page can still be matched.
+            await CandidateProfileModel.updateOne(
+                { userId: payload.userId },
+                { $setOnInsert: { userId: payload.userId } },
+                { upsert: true },
+            );
+
             logger.info({ jobId: payload.jobId, userId: payload.userId }, "JobPost Matching job added to queue.");
             const queuedJobMatching = await this.jobMatchingQueue.add(JOB_MATCHING_QUEUE.JOBS.PROCESS_JOB_MATCHING, payload, { removeOnComplete: true, removeOnFail: false, attempts: 5, backoff: { type: "exponential", delay: 8_000 } });
 

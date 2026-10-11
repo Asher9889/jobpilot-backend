@@ -1,8 +1,10 @@
 import z from "zod";
-import { JOB_MATCHING_STATUS } from "./job-matching.constants.ts";
+import { JOB_MATCHING_STATUS, JOB_APPLICATION_STATUS } from "./job-matching.constants.ts";
 import { getJobMatchesQuerySchema, jobMatchResultSchema } from "./job-matching.schema.ts";
 
 export type JobMatchingStatus = typeof JOB_MATCHING_STATUS[keyof typeof JOB_MATCHING_STATUS];
+
+export type JobApplicationStatus = typeof JOB_APPLICATION_STATUS[keyof typeof JOB_APPLICATION_STATUS];
 
 export type JobMatchingResult = z.infer<typeof jobMatchResultSchema>;
 

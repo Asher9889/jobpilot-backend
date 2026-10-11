@@ -58,6 +58,14 @@ const envConfig = {
         bucketName: process.env.MINIO_BUCKET_NAME!,
     },
 
+    // OpenCode Configuration
+    opencode: {
+        serverUsername: process.env.OPENCODE_SERVER_USERNAME!,
+        serverPassword: process.env.OPENCODE_SERVER_PASSWORD!,
+        serverHost: process.env.OPENCODE_SERVER_HOST!,
+        serverPort: Number(process.env.OPENCODE_SERVER_PORT!),
+    },
+
 
 }
 

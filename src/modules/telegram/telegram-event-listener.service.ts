@@ -49,10 +49,7 @@ export default class TelegramListenerService {
                 throw error;
             }
 
-            client.addEventHandler(
-                (event) => this.handleNewMessage(userId, event),
-                new NewMessage({})
-            );
+            client.addEventHandler((event) => this.handleNewMessage(userId, event), new NewMessage({}));
 
             this.clients.set(userId, client);
 
@@ -86,14 +83,20 @@ export default class TelegramListenerService {
     private handleNewMessage = async (userId: string, event: NewMessageEvent) => {
         const msg = event.message;
 
+        console.log("New message received:", msg.text.slice(0, 50), "...");
+
         const accounts = await JobSourceModel.find(
             { userId, status: JOB_SOURCE_STATUS.ACTIVE, deletedAt:null  },
             { externalSourceId: 1, sourceName: 1, sourceUsername: 1, type: 1 }
         ).lean();
 
+        // console.log("Find Accounts for userId:", userId, "Found:", accounts);
+
         // ignore messages from unregistered sources
         const externalSourceId = msg.chatId!.toString() ?? "";
         const source = accounts.find((a) => a.externalSourceId === externalSourceId);
+
+        logger.debug({isSourceFound: !!source, userId, msgId: msg.id, chatId: externalSourceId}, "Checking if message source is registered for user");
         if (!source) return;
 
         const payload: TTelegramMessagePayload = { userId, msgId: msg.id, chatId: externalSourceId, text: msg.text, sourceName: source.sourceName, sourceUsername: source.sourceUsername, sourceType: source.type };

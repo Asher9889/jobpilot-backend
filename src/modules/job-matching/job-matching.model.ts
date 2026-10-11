@@ -1,5 +1,28 @@
 import { Schema, model } from "mongoose";
-import { JOB_MATCHING_STATUS } from "./job-matching.constants.ts";
+import { JOB_APPLICATION_STATUS, JOB_MATCHING_STATUS } from "./job-matching.constants.ts";
+
+
+const JobApplicationStatusSchema = new Schema({
+        status: {
+            type: String,
+            enum: Object.values(JOB_APPLICATION_STATUS),
+            default: JOB_APPLICATION_STATUS.NOT_APPLIED,
+        },
+        submittedAt: {
+            type: Date,
+            default: null,
+        },
+        retryCount: {
+            type: Number,
+            default: 0,
+        },
+        errorMessage: {
+            type: String,
+            default: null,
+        },
+    },
+    { _id: false, versionKey: false, timestamps: false }
+);
 
 const jobMatchSchema = new Schema(
     {
@@ -31,6 +54,12 @@ const jobMatchSchema = new Schema(
             enum: Object.values(JOB_MATCHING_STATUS),
             default: JOB_MATCHING_STATUS.COMPLETED,
         },
+        jobApplicationStatus: {
+            email: JobApplicationStatusSchema,
+            applyUrl: JobApplicationStatusSchema,
+            companyWebsite: JobApplicationStatusSchema,
+            phone: JobApplicationStatusSchema,
+        }
     },
     { timestamps: true, versionKey: false }
 );

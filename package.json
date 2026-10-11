@@ -17,6 +17,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1148.0",
     "@aws-sdk/s3-request-presigner": "^3.1148.0",
+    "@opencode-ai/sdk": "^1.18.35",
     "argon2": "^0.45.1",
     "axios": "^1.20.0",
     "bullmq": "^6.3.11",
@@ -29,6 +30,7 @@
     "mongoose": "^9.11.0",
     "multer": "^2.4.0",
     "ollama": "^0.6.4",
+    "opencode-ai": "^1.18.35",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "teleproto": "^1.229.1",

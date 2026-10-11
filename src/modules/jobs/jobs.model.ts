@@ -76,7 +76,7 @@ const jobSchema = new Schema(
     { timestamps: true, versionKey: false }
 );
 
-jobSchema.index({"source.provider": 1, "source.externalSourceId": 1, "source.messageId": 1}, { unique: true });
+jobSchema.index({ "source.userId": 1, "source.provider": 1, "source.externalSourceId": 1, "source.messageId": 1}, { unique: true });
 
 const JobModel = model("Job", jobSchema);
 
