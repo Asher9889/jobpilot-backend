@@ -5,6 +5,9 @@ const CURRENT_YEAR = new Date().getFullYear();
 const MIN_GRADUATION_YEAR = 1950;
 const MAX_TOTAL_YEARS = 60;
 
+const name = z.string().trim().min(1).max(50, "name must be at most 50 characters").transform((name) =>
+    name.split(/\s+/).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")
+);
 const stringItem = z.string().trim().min(1, "Value must not be empty");
 const stringList = z.array(stringItem);
 const workModeList = z.array(z.enum(Object.values(WORK_MODE), "Invalid work mode"));
@@ -69,6 +72,7 @@ const summary = z.string().trim().max(2000, "summary must be at most 2000 charac
 /** `.strict()` rejects `profileCompletion`, `resumeObjectKey` (and any other unknown key), so clients
  *  can neither forge completion nor point `resumeObjectKey` at an object they do not own. */
 export const candidateProfileCreateSchema = z.strictObject({
+    name: name,
     headline,
     summary,
     skills: z.array(skillSchema).default([]),
@@ -78,6 +82,7 @@ export const candidateProfileCreateSchema = z.strictObject({
 });
 
 export const candidateProfileUpdateSchema = z.strictObject({
+    name: name,
     headline,
     summary,
     skills: z.array(skillSchema).optional(),

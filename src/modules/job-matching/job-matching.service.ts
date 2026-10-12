@@ -17,6 +17,12 @@ import type {
     TJobSourceMini,
     TJobSummary,
 } from "./job-matching.types.ts";
+import UserModel from "../user/user.model.ts";
+import { Queue, UnrecoverableError } from "bullmq";
+import { AUTO_APPLY_QUEUE } from "../auto-apply/auto-apply.constant.ts";
+import { autoApplyQueue } from "../auto-apply/index.ts";
+import { AutoApplyQueuePayload } from "../auto-apply/auto-apply.types.ts";
+import { EventBus, eventBus } from "../../events/index.ts";
 
 /** Shape of a job_matches row after `.populate({ path: "jobId" })`. */
 type TPopulatedJobDocument = {
@@ -101,13 +107,13 @@ const toReasonExcerpt = (reason: string): string => {
 const toSourceMini = (source: TPopulatedJobDocument["source"]): TJobSourceMini | null =>
     source
         ? {
-              provider: source.provider ?? "",
-              sourceName: source.sourceName ?? null,
-              sourceUsername: source.sourceUsername ?? null,
-              sourceType: source.sourceType ?? null,
-              messageId: source.messageId ?? 0,
-              messageDate: source.messageDate ?? null,
-          }
+            provider: source.provider ?? "",
+            sourceName: source.sourceName ?? null,
+            sourceUsername: source.sourceUsername ?? null,
+            sourceType: source.sourceType ?? null,
+            messageId: source.messageId ?? 0,
+            messageDate: source.messageDate ?? null,
+        }
         : null;
 
 const toMatchListRow = (doc: TPopulatedJobMatchDocument): TJobMatchListRow => ({
@@ -137,9 +143,11 @@ const toMatchDetail = (doc: TPopulatedJobMatchDocument): TJobMatchDetail => ({
 
 class JobMatchingService {
     private readonly aiService: AIService;
+    private readonly eventBus: EventBus;
 
-    constructor(aiService: AIService) {
+    constructor(aiService: AIService, eventBus: EventBus) {
         this.aiService = aiService;
+        this.eventBus = eventBus;
     }
 
     handleJobMatching = async (jobPayload: JobMatchingPayload) => {
@@ -160,6 +168,31 @@ class JobMatchingService {
             });
 
             await jobMatch.save(); // Save the job match to the database
+
+            // Now next step is to we got the relation b/w user and its job. auto apply now.
+            const user = await UserModel.findById(jobPayload.userId).lean();
+
+            if (!user) {
+                throw new UnrecoverableError(`User with ID ${jobPayload.userId} does not exist`);
+            }
+
+            if (user && user.autoApply.enabled && result.score >= user.autoApply.minMatchScore) {
+
+                const payload: AutoApplyQueuePayload = {
+                    jobId: jobPayload.jobId,
+                    userId: jobPayload.userId,
+                }; 
+
+                eventBus.emit(AUTO_APPLY_QUEUE.JOBS.PROCESS_AUTO_APPLY, payload);
+ 
+                // const job = await autoApplyQueue.add(AUTO_APPLY_QUEUE.JOBS.PROCESS_AUTO_APPLY, payload,
+                //     {
+                //         removeOnComplete: true, removeOnFail: false, attempts: 5, backoff:
+                //             { type: "exponential", delay: 30_000 }
+                //     });
+
+                // logger.info({ jobId: job.id, userId: job.data.userId }, "Job added to auto-apply queue for processing.");
+            }
 
             logger.info({ jobId: jobPayload.jobId, userId: jobPayload.userId, score: result.score }, "Job matching result saved successfully.");
         } catch (error) {

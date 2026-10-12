@@ -4,6 +4,7 @@ import { ProfileCompletionResult, TSkillProficiencyLevel, TWorkMode, TProfileCom
 
 
 export interface ICandidateProfile extends Document {
+  name: string | null;
   userId: mongoose.Types.ObjectId;
 
   headline: string | null;
@@ -48,7 +49,12 @@ export interface ICandidateProfile extends Document {
   calculateProfileCompletion(): ProfileCompletionResult;
 }
 
-const candidateProfileSchema = new Schema({
+const candidateProfileSchema = new Schema<ICandidateProfile>({
+    name: {
+        type: String,
+        trim: true,
+        default: null,
+    },
     userId: {
         type: Schema.Types.ObjectId,
         ref: "User",

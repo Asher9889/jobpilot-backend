@@ -29,6 +29,7 @@ export type TPreferencesInput = z.infer<typeof preferencesCreateSchema>;
 export interface TCandidateProfileResponse {
     id: unknown;
     userId: unknown;
+    name: string | null;
     headline: string | null;
     summary: string | null;
     skills: { name: string; level: TSkillProficiencyLevel | null }[];

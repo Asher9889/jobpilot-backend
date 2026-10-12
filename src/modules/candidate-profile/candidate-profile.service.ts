@@ -68,6 +68,7 @@ class CandidateProfileService {
 
         try {
             const profile = new CandidateProfileModel({
+                name: dto.name,
                 userId: loggedInUser._id,
                 headline: dto.headline ?? null,
                 summary: dto.summary ?? null,
@@ -98,6 +99,7 @@ class CandidateProfileService {
             throw new ApiError(StatusCodes.NOT_FOUND, "Candidate profile not found");
         }
 
+        profile.name = dto.name;
         if (dto.headline !== undefined) profile.headline = dto.headline;
         if (dto.summary !== undefined) profile.summary = dto.summary;
         if (dto.skills !== undefined) profile.skills = this.normalizeSkills(dto.skills);
@@ -226,6 +228,7 @@ class CandidateProfileService {
     private toResponse = (profile: ICandidateProfile): TCandidateProfileResponse => ({
         id: profile._id,
         userId: profile.userId,
+        name: profile.name,
         headline: profile.headline,
         summary: profile.summary,
         skills: profile.skills.map((skill) => ({ name: skill.name, level: skill.level ?? null })),

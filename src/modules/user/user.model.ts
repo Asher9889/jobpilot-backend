@@ -14,6 +14,15 @@ export interface IUser extends mongoose.Document {
     role: TUserRole;
     accountStatus: TAccountStatus;
     telegram: mongoose.Types.ObjectId | null;
+    autoApply: {
+        enabled: boolean;
+        applications: {
+            email: boolean;
+            applyUrl: boolean;
+        },
+        minMatchScore: number;
+        // emailTemplateId: null,
+    }
     comparePassword(password: string): Promise<boolean>;
     generateTokens(data: generateTokensPayload): generateJWTTokensResponse;
 }
@@ -23,7 +32,16 @@ export const userSchema = new mongoose.Schema<IUser>({
     password: { type: String, required: true },
     role: { type: String, enum: Object.values(USER_ROLE), required: true },
     accountStatus: { type: String, enum: Object.values(ACCOUNT_STATUS), default: ACCOUNT_STATUS.ACTIVE, required: true },
-    telegram: { type: mongoose.Types.ObjectId, ref: "TelegramAccount", default: null }
+    telegram: { type: mongoose.Types.ObjectId, ref: "TelegramAccount", default: null },
+    autoApply: {
+        enabled: { type: Boolean, default: false },
+        applications: {
+            email: { type: Boolean, default: false },
+            applyUrl: { type: Boolean, default: false },
+        },
+        minMatchScore: { type: Number, default: 0 },
+        // emailTemplateId: { type: mongoose.Types.ObjectId, ref: "EmailTemplate", default: null },
+    }
 }, { timestamps: true, versionKey: false });
 
 userSchema.index({ email: 1 }, { unique: true });
@@ -32,12 +50,12 @@ userSchema.methods.comparePassword = async function (password: string) {
     return await argon2.verify(this.password, password);
 }
 
-userSchema.methods.generateTokens = function(data: {id: string, role: string}){
+userSchema.methods.generateTokens = function (data: { id: string, role: string }) {
     const accessToken = jwt.sign(data, envConfig.jwtConfig.accessTokenSecret, { expiresIn: envConfig.jwtConfig.accessTokenMaxAgeMs });
     const refreshToken = jwt.sign(data, envConfig.jwtConfig.refreshTokenSecret, { expiresIn: envConfig.jwtConfig.refreshTokenMaxAgeMs });
-    return { accessToken, refreshToken }; 
+    return { accessToken, refreshToken };
 }
- 
+
 
 userSchema.pre("save", async function () {
     if (!this.isModified("password")) {
